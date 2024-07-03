@@ -4,7 +4,7 @@
 // @version      0.0.1
 // @description  bangumi tools - mio
 // @author       kasuie
-// @match        https://bgm.tv*
+// @match        https://bgm.tv/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=bgm.tv
 // @grant        GM.xmlHttpRequest
 // @require      https://cdn.bootcss.com/jquery/3.7.1/jquery.min.js
