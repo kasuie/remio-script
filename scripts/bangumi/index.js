@@ -2,7 +2,7 @@
  * @Author: kasuie
  * @Date: 2024-07-03 11:01:25
  * @LastEditors: kasuie
- * @LastEditTime: 2024-07-03 21:52:36
+ * @LastEditTime: 2024-07-04 16:23:42
  * @Description:
  */
 (function () {
@@ -52,54 +52,83 @@
 
   console.log("CID>>>", CID, "SID>>>", SID);
 
-  if (CID) {
-    /** 根据cid获取角色信息 */
-    request({
-      method: "GET",
-      url: `https://api.bgm.tv/v0/characters/${CID}`,
-    })
-      .then((res) => {
-        console.log("获取角色请求结果：", res);
+  const onSubmit = () => {
+    if (CID) {
+      /** 根据cid获取角色信息 */
+      request({
+        method: "GET",
+        url: `https://api.bgm.tv/v0/characters/${CID}`,
       })
-      .catch((e) => console.log(e))
-      .finally(() => {
-        console.log("finally>>>>");
+        .then((res) => {
+          console.log("获取角色请求结果：", res);
+        })
+        .catch((e) => console.log(e))
+        .finally(() => {
+          console.log("finally>>>>");
+        });
+    } else if (SID) {
+      /** 根据sid获取番剧信息 */
+      const subject = request({
+        method: "GET",
+        url: `https://api.bgm.tv/v0/subjects/${SID}`,
       });
-  } else if (SID) {
-    /** 根据sid获取番剧信息 */
-    const subject = request({
-      method: "GET",
-      url: `https://api.bgm.tv/v0/subjects/${SID}`,
-    });
 
-    /** 根据sid获取番剧角色信息 */
-    const characters = request({
-      method: "GET",
-      url: `https://api.bgm.tv/v0/subjects/${SID}/characters`,
-    });
+      /** 根据sid获取番剧角色信息 */
+      const characters = request({
+        method: "GET",
+        url: `https://api.bgm.tv/v0/subjects/${SID}/characters`,
+      });
 
-    /** 根据sid获取番剧人员信息 */
-    const persons = request({
-      method: "GET",
-      url: `https://api.bgm.tv/v0/subjects/${SID}/persons`,
-    });
+      /** 根据sid获取番剧人员信息 */
+      const persons = request({
+        method: "GET",
+        url: `https://api.bgm.tv/v0/subjects/${SID}/persons`,
+      });
 
-    Promise.all([subject, characters, persons]).then(
-      ([subject, characters, persons]) => {
-        console.log(characters, persons);
-        let params = formatSub(subject);
+      Promise.all([subject, characters, persons]).then(
+        ([subject, characters, persons]) => {
+          console.log(characters, persons);
+          const afterPersons = formatRoles(persons);
+          const { data, actors } = formatRoles(characters, true);
+          const personsId = [],
+            resultPersons = [];
+          const relCharacters = data.map((v) => ({ id: v.id, name: v.name }));
+          const relPersons = afterPersons.map((v) => {
+            if (!personsId.includes(v.id)) {
+              // 去重
+              personsId.push(v.id);
+              resultPersons.push({
+                ...v,
+                shortSummary: null,
+              });
+            }
 
-        // request({
-        //   method: "POST",
-        //   url: "http://localhost:8001/bgm/save",
-        //   headers: { "Content-Type": "application/json" },
-        //   data: JSON.stringify(params),
-        // }).then((res) => {
-        //   console.log(res, "请求结果~");
-        // });
-      }
-    );
-  }
+            return {
+              id: v.id,
+              name: v.name,
+              position: v.shortSummary,
+            };
+          });
+          const params = {
+            ...formatSub(subject),
+            characters: data,
+            persons: resultPersons.concat(actors),
+            relPersons: JSON.stringify(relPersons),
+            relCharacters: JSON.stringify(relCharacters),
+          };
+          console.log(params, "params");
+          // request({
+          //   method: "POST",
+          //   url: "http://localhost:8001/bgm/save",
+          //   headers: { "Content-Type": "application/json" },
+          //   data: JSON.stringify(params),
+          // }).then((res) => {
+          //   console.log(res, "请求结果~");
+          // });
+        }
+      );
+    }
+  };
 
   // /** 获取收藏 */
   // request({
@@ -210,6 +239,81 @@
       images: JSON.stringify(images),
       totalEpisodes: total_episodes,
     };
+  };
+
+  const formatRoles = (list, isChar = false, isCv = false) => {
+    if (!Array.isArray(list)) return null;
+    let data = list;
+    if (isChar) {
+      let totalActors = [];
+      data = list.map((v) => {
+        let { actors, images, locked, ...others } = v;
+        for (const key in images) {
+          images[key] = images[key].replace("https://lain.bgm.tv", "");
+        }
+        const itemCvs = formatRoles(actors, false, true);
+        totalActors = totalActors.concat(itemCvs);
+        return {
+          ...others,
+          locked: locked || false,
+          isCv: isCv,
+          actors: JSON.stringify(
+            itemCvs.map((v) => ({ name: v.name, id: v.id }))
+          ),
+          images: JSON.stringify(images),
+        };
+      });
+      return { data, actors: totalActors };
+    } else {
+      const whiteListByCount = ["作画监督", "副导演", "原画", "补间动画"];
+      const whiteList = [
+        "原作",
+        "导演",
+        "人物原案",
+        "人物设定",
+        "音乐",
+        "总作画监督",
+        "脚本",
+        "系列构成",
+        "美术监督",
+        "摄影监督",
+      ];
+      const relMaps = list.reduce((prev, curr) => {
+        if (Object.hasOwn(prev, curr.relation)) {
+          ++prev[curr.relation];
+        } else {
+          prev[curr.relation] = 1;
+        }
+        return prev;
+      }, {});
+      if (!isCv) {
+        data = list.filter((v) => {
+          if (!v.relation) return false;
+          if (whiteList.includes(v.relation)) {
+            return true;
+          } else if (whiteListByCount.includes(v.relation)) {
+            return relMaps[v.relation] < 7;
+          } else {
+            return false;
+          }
+        });
+      }
+      data = data.map((v) => {
+        let { career, images, short_summary, locked, relation, ...others } = v;
+        for (const key in images) {
+          images[key] = images[key].replace("https://lain.bgm.tv", "");
+        }
+        return {
+          ...others,
+          locked: locked || false,
+          isCv: isCv,
+          shortSummary: isCv ? short_summary : relation,
+          images: JSON.stringify(images),
+          career: career && career.join(","),
+        };
+      });
+      return data;
+    }
   };
 
   const onGetDate = (dateString) => {
