@@ -2,7 +2,7 @@
  * @Author: kasuie
  * @Date: 2024-07-03 11:01:25
  * @LastEditors: kasuie
- * @LastEditTime: 2024-07-04 16:23:42
+ * @LastEditTime: 2024-07-05 09:49:20
  * @Description:
  */
 (function () {
@@ -46,6 +46,30 @@
     }
   };
 
+  const init = () => {
+    const $button = $("<button>", {
+      id: "mio-button",
+      text: "Mio",
+    });
+
+    $button.click(() => onSubmit());
+
+    $button.css({
+      padding: "6px 16px",
+      "font-size": "12px",
+      "background-color": "#f09199",
+      color: "white",
+      border: "none",
+      "border-radius": "8px",
+      cursor: "pointer",
+      position: "fixed",
+      top: "14px",
+      right: "20px",
+    });
+
+    $("body.bangumi").append($button);
+  };
+
   const CID = onGetPathId("character");
 
   const SID = onGetPathId("subject");
@@ -53,6 +77,7 @@
   console.log("CID>>>", CID, "SID>>>", SID);
 
   const onSubmit = () => {
+    return console.log("SID:", SID, "CID:", CID);
     if (CID) {
       /** 根据cid获取角色信息 */
       request({
@@ -328,4 +353,6 @@
       return null;
     }
   };
+
+  init();
 })();
