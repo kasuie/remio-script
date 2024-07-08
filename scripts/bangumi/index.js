@@ -2,7 +2,7 @@
  * @Author: kasuie
  * @Date: 2024-07-03 11:01:25
  * @LastEditors: kasuie
- * @LastEditTime: 2024-07-05 09:49:20
+ * @LastEditTime: 2024-07-08 22:05:10
  * @Description:
  */
 (function () {
@@ -77,7 +77,7 @@
   console.log("CID>>>", CID, "SID>>>", SID);
 
   const onSubmit = () => {
-    return console.log("SID:", SID, "CID:", CID);
+    // return console.log("SID:", SID, "CID:", CID);
     if (CID) {
       /** 根据cid获取角色信息 */
       request({
@@ -85,12 +85,9 @@
         url: `https://api.bgm.tv/v0/characters/${CID}`,
       })
         .then((res) => {
-          console.log("获取角色请求结果：", res);
+          console.log("获取角色请求结果：", formatChar(res));
         })
-        .catch((e) => console.log(e))
-        .finally(() => {
-          console.log("finally>>>>");
-        });
+        .catch((e) => console.log(e));
     } else if (SID) {
       /** 根据sid获取番剧信息 */
       const subject = request({
@@ -117,7 +114,11 @@
           const { data, actors } = formatRoles(characters, true);
           const personsId = [],
             resultPersons = [];
-          const relCharacters = data.map((v) => ({ id: v.id, name: v.name }));
+          const relCharacters = data.map((v) => ({
+            id: v.id,
+            name: v.name,
+            relation: v.relation,
+          }));
           const relPersons = afterPersons.map((v) => {
             if (!personsId.includes(v.id)) {
               // 去重
@@ -134,22 +135,34 @@
               position: v.shortSummary,
             };
           });
+          // 去重
+          const resultActors =
+            actors?.reduce(
+              (prev, curr) => {
+                if (!prev[0].includes(curr.id)) {
+                  prev[0].push(curr.id);
+                  prev[1].push(curr);
+                }
+                return prev;
+              },
+              [[], []]
+            )[1] || [];
           const params = {
             ...formatSub(subject),
             characters: data,
-            persons: resultPersons.concat(actors),
+            persons: resultPersons.concat(resultActors),
             relPersons: JSON.stringify(relPersons),
             relCharacters: JSON.stringify(relCharacters),
           };
           console.log(params, "params");
-          // request({
-          //   method: "POST",
-          //   url: "http://localhost:8001/bgm/save",
-          //   headers: { "Content-Type": "application/json" },
-          //   data: JSON.stringify(params),
-          // }).then((res) => {
-          //   console.log(res, "请求结果~");
-          // });
+          request({
+            method: "POST",
+            url: "http://localhost:8001/bgm/saveSub",
+            headers: { "Content-Type": "application/json" },
+            data: JSON.stringify(params),
+          }).then((res) => {
+            console.log(res, "请求结果~");
+          });
         }
       );
     }
@@ -167,6 +180,57 @@
   //   .finally(() => {
   //     console.log("finally>>>>");
   //   });
+
+  const formatChar = (char) => {
+    let {
+      birth_day,
+      birth_mon,
+      birth_year,
+      blood_type,
+      images,
+      infobox,
+      stat,
+      gender,
+      ...others
+    } = char;
+    for (const key in images) {
+      images[key] = images[key].replace("https://lain.bgm.tv", "");
+    }
+    const infoKeys = [
+      { name: "中文名", field: "nameCn" },
+      { name: "别名", field: "aliasName" },
+      { name: "性别", field: "gender" },
+    ];
+
+    let aliasName = null,
+      nameCn = null;
+
+    const info = infobox?.reduce((prev, curr) => {
+      const item = infoKeys.find((v) => curr.key.includes(v.name));
+      if (item) {
+        if (item.field === "nameCn" && !nameCn) {
+          nameCn = curr.value;
+        } else if (item.field === "aliasName" && !aliasName) {
+          aliasName = curr.value;
+        } else if (item.field === "gender" && !gender) {
+          gender = curr.value === "男" ? "male" : "female";
+        }
+      } else {
+        !prev && (prev = {});
+        prev[curr.key] = curr.value;
+      }
+      return prev;
+    }, null);
+
+    return {
+      ...others,
+      info: info && JSON.stringify(info),
+      nameCn,
+      gender,
+      aliasName: aliasName && JSON.stringify(aliasName),
+      images: JSON.stringify(images),
+    };
+  };
 
   const formatSub = (subject) => {
     let {
@@ -282,9 +346,9 @@
           ...others,
           locked: locked || false,
           isCv: isCv,
-          actors: JSON.stringify(
-            itemCvs.map((v) => ({ name: v.name, id: v.id }))
-          ),
+          actors: itemCvs?.length
+            ? JSON.stringify(itemCvs.map((v) => ({ name: v.name, id: v.id })))
+            : null,
           images: JSON.stringify(images),
         };
       });
