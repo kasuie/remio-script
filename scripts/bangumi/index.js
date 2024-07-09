@@ -2,13 +2,15 @@
  * @Author: kasuie
  * @Date: 2024-07-03 11:01:25
  * @LastEditors: kasuie
- * @LastEditTime: 2024-07-09 16:51:16
+ * @LastEditTime: 2024-07-09 17:14:44
  * @Description:
  */
 (function () {
   "use strict";
 
   let $message, $button;
+
+  const BaseUrl = "https://kasuie.cc/apis";
 
   const onMessage = (text, type = "success", time = 3000) => {
     if (text && $message) {
@@ -158,7 +160,7 @@
               : null,
             cv: cvData,
           };
-          onSubmit("http://localhost:8001/bgm/saveChar", params);
+          onSubmit(`${BaseUrl}/bgm/saveChar`, params);
         });
       });
     } else if (SID) {
@@ -183,7 +185,6 @@
 
       Promise.all([subject, characters, persons]).then(
         ([subject, characters, persons]) => {
-          console.log(characters, persons);
           const afterPersons = formatRoles(persons);
           const { data, actors } = formatRoles(characters, true);
           const personsId = [],
@@ -228,7 +229,7 @@
             relPersons: JSON.stringify(relPersons),
             relCharacters: JSON.stringify(relCharacters),
           };
-          onSubmit("http://localhost:8001/bgm/saveSub", params);
+          onSubmit(`${BaseUrl}/bgm/saveSub`, params);
         }
       );
     }
@@ -421,6 +422,10 @@
       original,
       director,
       charSetting;
+
+    for (const key in images) {
+      images[key] = images[key].replace("https://lain.bgm.tv", "");
+    }
 
     const tagsString = tags?.reduce((prev, curr, index) => {
       return index > 15 ? prev : prev ? `${prev},${curr.name}` : curr.name;
