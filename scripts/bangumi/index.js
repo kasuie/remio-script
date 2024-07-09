@@ -2,7 +2,7 @@
  * @Author: kasuie
  * @Date: 2024-07-03 11:01:25
  * @LastEditors: kasuie
- * @LastEditTime: 2024-07-09 16:43:57
+ * @LastEditTime: 2024-07-09 16:51:16
  * @Description:
  */
 (function () {
@@ -259,19 +259,6 @@
         }, 300)
       );
   };
-
-  // /** 获取收藏 */
-  // request({
-  //   method: "GET",
-  //   url: `https://api.bgm.tv/v0/users/493768/collections?limit=30&offset=0`,
-  // })
-  //   .then((res) => {
-  //     console.log("获取收藏请求结果：", res);
-  //   })
-  //   .catch((e) => console.log(e))
-  //   .finally(() => {
-  //     console.log("finally>>>>");
-  //   });
 
   const formatPerson = (person, isCv) => {
     const {
