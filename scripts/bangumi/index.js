@@ -2,7 +2,7 @@
  * @Author: kasuie
  * @Date: 2024-07-03 11:01:25
  * @LastEditors: kasuie
- * @LastEditTime: 2024-07-09 17:14:44
+ * @LastEditTime: 2024-07-13 16:13:36
  * @Description:
  */
 (function () {
@@ -351,6 +351,9 @@
     } = char;
     for (const key in images) {
       images[key] = images[key].replace("https://lain.bgm.tv", "");
+      if (key === "large") {
+        images["avatar"] = images[key].replace("/pic/crt/l", "/pic/crt/g");
+      }
     }
     const infoKeys = [
       { name: "中文名", field: "nameCn" },
@@ -424,7 +427,10 @@
       charSetting;
 
     for (const key in images) {
-      images[key] = images[key].replace("https://lain.bgm.tv", "");
+      images[key] = images[key]?.replace("https://lain.bgm.tv", "");
+      if (key === "large") {
+        images["avatar"] = images[key]?.replace("/pic/cover/l", "/pic/cover/g");
+      }
     }
 
     const tagsString = tags?.reduce((prev, curr, index) => {
@@ -509,6 +515,9 @@
         let { actors, images, locked, ...others } = v;
         for (const key in images) {
           images[key] = images[key].replace("https://lain.bgm.tv", "");
+          if (key === "large") {
+            images["avatar"] = images[key].replace("/pic/crt/l", "/pic/crt/g");
+          }
         }
         const itemCvs = formatRoles(actors, false, true);
         totalActors = totalActors.concat(itemCvs);
@@ -561,6 +570,9 @@
         let { career, images, short_summary, locked, relation, ...others } = v;
         for (const key in images) {
           images[key] = images[key].replace("https://lain.bgm.tv", "");
+          if (key === "large") {
+            images["avatar"] = images[key].replace("/pic/crt/l", "/pic/crt/g");
+          }
         }
         return {
           ...others,
