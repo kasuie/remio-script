@@ -8,6 +8,33 @@
 (function () {
   "use strict";
 
+  let $message, $button;
+
+  const BaseUrl = "https://kasuie.cc/apis";
+
+  const onMessage = (text, type = "success", time = 3000) => {
+    if (text && $message) {
+      let timer;
+      if (timer) clearTimeout(timer);
+      if (type == "success") {
+        $message.css("color", "#4ef16a");
+      } else if (type == "error") {
+        $message.css("color", "#f23939");
+      } else {
+        $message.css("color", "#ffffff");
+      }
+      $message.text(text);
+      $message.css("top", "36px");
+      timer = setTimeout(() => {
+        $message.css("top", "-36px");
+      }, time);
+    }
+  };
+
+  const onLoading = (loading = true) => {
+    $button && $button.attr("disabled", loading);
+  };
+
   const request = (data) => {
     return new Promise((resolve, reject) => {
       if (!data.method) {
@@ -33,11 +60,14 @@
     });
   };
 
-  const onGetPathId = (type) => {
-    if (window.location.pathname && window.location.pathname.includes(type)) {
-      const pathname = window.location.pathname.split("/");
+  const onGetPathEnd = (type, _path = null) => {
+    const path = _path || window.location.pathname;
+    if (path && path.includes(type)) {
+      const pathname = path.split("/");
       if (pathname?.length) {
-        return +pathname[pathname.length - 1];
+        return _path
+          ? pathname[pathname.length - 1]
+          : +pathname[pathname.length - 1];
       } else {
         return null;
       }
@@ -47,12 +77,15 @@
   };
 
   const init = () => {
-    const $button = $("<button>", {
+    $button = $("<button>", {
       id: "mio-button",
       text: "Mio",
     });
+    $message = $("<div>", {
+      id: "mio-message",
+    });
 
-    $button.click(() => onSubmit());
+    $button.click(() => onGetData());
 
     $button.css({
       padding: "6px 16px",
@@ -67,28 +100,71 @@
       right: "20px",
     });
 
+    $message.css({
+      position: "fixed",
+      top: "-36px",
+      left: "50%",
+      transform: "translateX(-50%)",
+      width: "200px",
+      textAlign: "center",
+      minWidth: "100px",
+      minHeight: "36px",
+      background: "rgba(0,0,0,.4)",
+      borderRadius: "12px",
+      transition: "all .3s ease-in-out",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+    });
+
     $("body.bangumi").append($button);
+    $("body.bangumi").append($message);
   };
 
-  const CID = onGetPathId("character");
+  const CID = onGetPathEnd("character");
 
-  const SID = onGetPathId("subject");
+  const SID = onGetPathEnd("subject");
 
   console.log("CID>>>", CID, "SID>>>", SID);
 
-  const onSubmit = () => {
+  const onGetData = () => {
     // return console.log("SID:", SID, "CID:", CID);
     if (CID) {
+      onLoading();
       /** 根据cid获取角色信息 */
-      request({
+      const character = request({
         method: "GET",
         url: `https://api.bgm.tv/v0/characters/${CID}`,
-      })
-        .then((res) => {
-          console.log("获取角色请求结果：", formatChar(res));
-        })
-        .catch((e) => console.log(e));
+      });
+
+      /** 根据cid获取角色cv信息 */
+      request({
+        method: "GET",
+        url: `https://api.bgm.tv/v0/characters/${CID}/persons`,
+      }).then((cvs) => {
+        let cv = null;
+        const item = cvs?.find((v) => v.subject_type === 2);
+        if (item?.id) {
+          /** 根据id获取cv详细信息 */
+          cv = request({
+            method: "GET",
+            url: `https://api.bgm.tv/v0/persons/${item.id}`,
+          });
+        }
+        Promise.all([character, cv]).then(([character, cv]) => {
+          const cvData = cv && formatPerson(cv, true);
+          const params = {
+            ...formatChar(character),
+            actors: cvData
+              ? JSON.stringify({ name: cvData.name, id: cvData.id })
+              : null,
+            cv: cvData,
+          };
+          onSubmit(`${BaseUrl}/bgm/saveChar`, params);
+        });
+      });
     } else if (SID) {
+      onLoading();
       /** 根据sid获取番剧信息 */
       const subject = request({
         method: "GET",
@@ -109,7 +185,6 @@
 
       Promise.all([subject, characters, persons]).then(
         ([subject, characters, persons]) => {
-          console.log(characters, persons);
           const afterPersons = formatRoles(persons);
           const { data, actors } = formatRoles(characters, true);
           const personsId = [],
@@ -125,14 +200,14 @@
               personsId.push(v.id);
               resultPersons.push({
                 ...v,
-                shortSummary: null,
+                summary: null,
               });
             }
 
             return {
               id: v.id,
               name: v.name,
-              position: v.shortSummary,
+              position: v.summary,
             };
           });
           // 去重
@@ -154,32 +229,113 @@
             relPersons: JSON.stringify(relPersons),
             relCharacters: JSON.stringify(relCharacters),
           };
-          console.log(params, "params");
-          request({
-            method: "POST",
-            url: "http://localhost:8001/bgm/saveSub",
-            headers: { "Content-Type": "application/json" },
-            data: JSON.stringify(params),
-          }).then((res) => {
-            console.log(res, "请求结果~");
-          });
+          onSubmit(`${BaseUrl}/bgm/saveSub`, params);
         }
       );
     }
   };
 
-  // /** 获取收藏 */
-  // request({
-  //   method: "GET",
-  //   url: `https://api.bgm.tv/v0/users/493768/collections?limit=30&offset=0`,
-  // })
-  //   .then((res) => {
-  //     console.log("获取收藏请求结果：", res);
-  //   })
-  //   .catch((e) => console.log(e))
-  //   .finally(() => {
-  //     console.log("finally>>>>");
-  //   });
+  const onSubmit = (
+    url,
+    params,
+    options = {
+      method: "POST",
+    }
+  ) => {
+    console.log("onSubmit:", params);
+    request({
+      ...options,
+      url: url,
+      headers: { "Content-Type": "application/json" },
+      data: JSON.stringify(params),
+    })
+      .then((res) => {
+        console.log(res, "请求结果~");
+        onMessage(res.message, res.success ? "success" : "error");
+      })
+      .catch((e) => onMessage(`请求失败：${e}`, "error"))
+      .finally(() =>
+        setTimeout(() => {
+          onLoading(false);
+        }, 300)
+      );
+  };
+
+  const formatPerson = (person, isCv) => {
+    const {
+      career,
+      blood_type,
+      birth_day,
+      birth_mon,
+      birth_year,
+      images,
+      infobox,
+      gender,
+      stat,
+      last_modified,
+      img,
+      ...others
+    } = person;
+
+    for (const key in images) {
+      images[key] = images[key].replace("https://lain.bgm.tv", "");
+    }
+
+    const infoKeys = [
+      { name: "中文名", field: "nameCn" },
+      { name: "别名", field: "aliasName" },
+      { name: "性别", field: "gender" },
+      { name: "生日", field: "birth" },
+      { name: "Twitter", field: "twitter" },
+      { name: "引用来源", field: "source" },
+    ];
+
+    let aliasName, nameCn, twiAccount, birthDay;
+
+    const info = infobox?.reduce((prev, curr) => {
+      const item = infoKeys.find((v) => curr.key.includes(v.name));
+      if (item) {
+        if (item.field === "nameCn" && !nameCn) {
+          nameCn = curr.value;
+        } else if (item.field === "aliasName" && !aliasName) {
+          aliasName = curr.value;
+        } else if (item.field === "gender" && !gender) {
+          gender = curr.value === "男" ? "male" : "female";
+        } else if (item.field === "twitter") {
+          if (curr.value.includes(".com")) {
+            twiAccount = onGetPathEnd(".com", curr.value);
+          } else {
+            twiAccount = curr.value;
+          }
+        } else if (item.field === "birth") {
+          birthDay = curr.value;
+        }
+      } else {
+        !prev && (prev = {});
+        prev[curr.key] = curr.value;
+      }
+      return prev;
+    }, null);
+
+    if (!birthDay) {
+      birthDay = [birth_year, birth_mon, birth_day].reduce((prev, curr) => {
+        return prev ? `${prev}-${curr || ""}` : curr;
+      }, null);
+    }
+
+    return {
+      ...others,
+      twiAccount,
+      birthDay,
+      nameCn,
+      gender,
+      isCv,
+      info: JSON.stringify(info),
+      aliasName: aliasName && JSON.stringify(aliasName),
+      bgmImages: JSON.stringify(images),
+      career: career && career.join(","),
+    };
+  };
 
   const formatChar = (char) => {
     let {
@@ -195,15 +351,23 @@
     } = char;
     for (const key in images) {
       images[key] = images[key].replace("https://lain.bgm.tv", "");
+      if (key === "large") {
+        images["avatar"] = images[key].replace("/pic/crt/l", "/pic/crt/g");
+      }
     }
     const infoKeys = [
       { name: "中文名", field: "nameCn" },
       { name: "别名", field: "aliasName" },
       { name: "性别", field: "gender" },
+      { name: "生日", field: "birth" },
+      { name: "引用来源", field: "source" },
     ];
 
-    let aliasName = null,
-      nameCn = null;
+    let aliasName, nameCn, birthDay, birthDesc;
+
+    birthDay = [birth_year, birth_mon, birth_day].reduce((prev, curr) => {
+      return prev ? `${prev}-${curr || ""}` : curr;
+    }, null);
 
     const info = infobox?.reduce((prev, curr) => {
       const item = infoKeys.find((v) => curr.key.includes(v.name));
@@ -214,6 +378,8 @@
           aliasName = curr.value;
         } else if (item.field === "gender" && !gender) {
           gender = curr.value === "男" ? "male" : "female";
+        } else if (item.field === "birth") {
+          birthDesc = curr.value;
         }
       } else {
         !prev && (prev = {});
@@ -227,8 +393,11 @@
       info: info && JSON.stringify(info),
       nameCn,
       gender,
+      birthDay,
+      birthDesc,
+      bloodType: blood_type,
       aliasName: aliasName && JSON.stringify(aliasName),
-      images: JSON.stringify(images),
+      bgmImages: JSON.stringify(images),
     };
   };
 
@@ -256,6 +425,13 @@
       original,
       director,
       charSetting;
+
+    for (const key in images) {
+      images[key] = images[key]?.replace("https://lain.bgm.tv", "");
+      if (key === "large") {
+        images["avatar"] = images[key]?.replace("/pic/cover/l", "/pic/cover/g");
+      }
+    }
 
     const tagsString = tags?.reduce((prev, curr, index) => {
       return index > 15 ? prev : prev ? `${prev},${curr.name}` : curr.name;
@@ -325,7 +501,7 @@
         director,
         charSetting,
       }),
-      images: JSON.stringify(images),
+      bgmImages: JSON.stringify(images),
       totalEpisodes: total_episodes,
     };
   };
@@ -339,6 +515,9 @@
         let { actors, images, locked, ...others } = v;
         for (const key in images) {
           images[key] = images[key].replace("https://lain.bgm.tv", "");
+          if (key === "large") {
+            images["avatar"] = images[key].replace("/pic/crt/l", "/pic/crt/g");
+          }
         }
         const itemCvs = formatRoles(actors, false, true);
         totalActors = totalActors.concat(itemCvs);
@@ -349,7 +528,7 @@
           actors: itemCvs?.length
             ? JSON.stringify(itemCvs.map((v) => ({ name: v.name, id: v.id })))
             : null,
-          images: JSON.stringify(images),
+          bgmImages: JSON.stringify(images),
         };
       });
       return { data, actors: totalActors };
@@ -391,13 +570,16 @@
         let { career, images, short_summary, locked, relation, ...others } = v;
         for (const key in images) {
           images[key] = images[key].replace("https://lain.bgm.tv", "");
+          if (key === "large") {
+            images["avatar"] = images[key].replace("/pic/crt/l", "/pic/crt/g");
+          }
         }
         return {
           ...others,
           locked: locked || false,
           isCv: isCv,
-          shortSummary: isCv ? short_summary : relation,
-          images: JSON.stringify(images),
+          summary: isCv ? short_summary : relation,
+          bgmImages: JSON.stringify(images),
           career: career && career.join(","),
         };
       });
