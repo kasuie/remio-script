@@ -2,15 +2,17 @@
  * @Author: kasuie
  * @Date: 2024-07-03 11:01:25
  * @LastEditors: kasuie
- * @LastEditTime: 2024-08-04 13:13:43
+ * @LastEditTime: 2024-09-17 21:59:51
  * @Description:
  */
 (function () {
   "use strict";
 
-  let $message, $button;
+  const isDev = false;
 
-  const BaseUrl = "https://kasuie.cc/apis";
+  let $message, $button, global;
+
+  const BaseUrl = isDev ? "http://localhost:8001" : "https://kasuie.cc/apis";
 
   const onMessage = (text, type = "success", time = 3000) => {
     if (text && $message) {
@@ -27,6 +29,7 @@
       $message.css("top", "36px");
       timer = setTimeout(() => {
         $message.css("top", "-36px");
+        $message.text("");
       }, time);
     }
   };
@@ -85,7 +88,118 @@
       id: "mio-message",
     });
 
-    $button.click(() => onGetData());
+    const styles = `
+    .modal {
+        display: none; /* 默认隐藏 */
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 420px;
+        background-color: #010101;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+        padding: 20px;
+        border-radius: 10px;
+        z-index: 1000;
+    }
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 18px;
+        font-weight: bold;
+    }
+    .submit-btn {
+      padding: 6px 16px;
+      font-size: 12px;
+      background-color: #f09199;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .close-btn {
+        cursor: pointer;
+        font-size: 24px;
+    }
+    .modal-body {
+        margin: 20px 0;
+        min-height: 200px;
+    }
+    .modal-footer {    
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 16px;
+    }
+    .overlay {
+        display: none; /* 默认隐藏 */
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+    .open-modal-btn {
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+    }
+    #rank {
+      outline: none;
+      border: none;
+      background-color: rgba(255, 255, 255, .3);
+      width: 80px;
+      border-radius: 8px;
+      padding: 6px 8px;
+    }
+    `;
+
+    // 将样式添加到 head 中
+    $("head").append(`<style>${styles}</style>`);
+
+    // 动态生成弹框的HTML结构
+    $("body.bangumi").append(`
+              <div class="overlay"></div>
+              <div class="modal">
+                  <div class="modal-header">
+                      <span class="modal-title">添加</span>
+                      <span class="close-btn">&times;</span>
+                  </div>
+                  <div class="modal-body">
+                  </div>
+                  <div class="modal-footer">
+                      <input id="rank" type="number" />
+                      <button class="submit-btn">提交</button>
+                  </div>
+              </div>
+          `);
+
+    // 点击右上角的关闭按钮关闭弹框
+    $(".close-btn").on("click", onCloseModal);
+
+    // 点击遮罩层也可以关闭弹框
+    // $(".overlay").on("click", onCloseModal);
+
+    // 点击提交按钮可以执行其他逻辑
+    $(".submit-btn").on("click", function () {
+      const rank = +$("#rank").val();
+      const { params, url } = global;
+      if (rank) {
+        onAppend("div.modal-body", "<p>获取到排名信息...</p>");
+      }
+      onSubmit(url, {
+        ...params,
+        rank: rank ? rank : null,
+      });
+    });
+
+    $button.on("click", function () {
+      onGetData();
+      $(".overlay, .modal").fadeIn();
+    });
 
     $button.css({
       padding: "6px 16px",
@@ -127,10 +241,23 @@
 
   console.log("CID>>>", CID, "SID>>>", SID);
 
+  const onAppend = (ele, data) => $(ele).append(data);
+
+  const onClear = (ele) => $(ele).html(null);
+
+  const onCloseModal = () => {
+    $("#rank").val(null);
+    onLoading(false);
+    onClear("div.modal-body");
+    $(".overlay, .modal").fadeOut();
+  };
+
   const onGetData = () => {
     // return console.log("SID:", SID, "CID:", CID);
     if (CID) {
+      $("span.modal-title").text("新增角色");
       onLoading();
+      onAppend("div.modal-body", "<p>开始加载数据...</p>");
       /** 根据cid获取角色信息 */
       const character = request({
         method: "GET",
@@ -160,11 +287,19 @@
               : null,
             cv: cvData,
           };
-          onSubmit(`${BaseUrl}/bgm/saveChar`, params);
+          global = {
+            params,
+            url: `${BaseUrl}/bgm/saveChar`,
+          };
+          onLoading(false);
+          onAppend("div.modal-body", "<p>加载成功</p>");
+          // onSubmit(`${BaseUrl}/bgm/saveChar`, params);
         });
       });
     } else if (SID) {
+      $("span.modal-title").text("新增番剧");
       onLoading();
+      onAppend("div.modal-body", "<p>开始加载数据...</p>");
       /** 根据sid获取番剧信息 */
       const subject = request({
         method: "GET",
@@ -229,7 +364,13 @@
             relPersons: JSON.stringify(relPersons),
             relCharacters: JSON.stringify(relCharacters),
           };
-          onSubmit(`${BaseUrl}/bgm/saveSub`, params);
+          global = {
+            params,
+            url: `${BaseUrl}/bgm/saveSub`,
+          };
+          onLoading(false);
+          onAppend("div.modal-body", "<p>加载成功</p>");
+          // onSubmit(`${BaseUrl}/bgm/saveSub`, params);
         }
       );
     }
@@ -242,6 +383,7 @@
       method: "POST",
     }
   ) => {
+    onAppend("div.modal-body", "<p>开始上报数据...</p>");
     console.log("onSubmit:", params);
     request({
       ...options,
@@ -251,12 +393,16 @@
     })
       .then((res) => {
         console.log(res, "请求结果~");
+        onAppend(
+          "div.modal-body",
+          `<p>上报数据结果:${res.success ? "成功" : "失败"}</p>`
+        );
         onMessage(res.message, res.success ? "success" : "error");
       })
       .catch((e) => onMessage(`请求失败：${e}`, "error"))
       .finally(() =>
         setTimeout(() => {
-          onLoading(false);
+          onCloseModal();
         }, 300)
       );
   };
