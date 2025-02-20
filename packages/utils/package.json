@@ -1,6 +1,6 @@
 {
   "name": "remio-script-utils",
-  "private": true,
+  "private": false,
   "version": "0.0.0",
   "author": "kasuie",
   "license": "Apache-2.0",
