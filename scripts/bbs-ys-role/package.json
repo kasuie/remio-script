@@ -1,5 +1,5 @@
 {
-  "name": "remio-scripts-bbs",
+  "name": "remio-script-bbs",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,7 +10,8 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "@types/jquery": "^3.5.32"
+    "@types/jquery": "^3.5.32",
+    "remio-script-utils": "workspace:^"
   },
   "dependencies": {
     "jquery": "^3.7.1"

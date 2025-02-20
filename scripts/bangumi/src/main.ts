@@ -1,5 +1,4 @@
-import { GM } from "vite-plugin-monkey/dist/client";
-
+import { request } from "remio-script-utils";
 interface GlobalParams {
   params: any;
   url: string;
@@ -33,31 +32,6 @@ const onMessage = (text: string, type = "success", time = 3000) => {
 
 const onLoading = (loading = true) => {
   $button && $button.attr("disabled", loading ? "true" : "false");
-};
-
-const request = (data: any) => {
-  return new Promise((resolve, reject) => {
-    if (!data.method) {
-      data.method = "get";
-    }
-    if (!data.timeout) {
-      data.timeout = 10000;
-    }
-    data.onload = function (res: any) {
-      try {
-        resolve(JSON.parse(res.responseText));
-      } catch (error) {
-        reject(error);
-      }
-    };
-    data.onerror = function (e: any) {
-      reject(e);
-    };
-    data.ontimeout = function () {
-      reject(false);
-    };
-    GM.xmlHttpRequest(data);
-  });
 };
 
 const onGetPathEnd = (type: string, _path = null) => {

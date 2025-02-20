@@ -1,32 +1,7 @@
-import { GM } from "vite-plugin-monkey/dist/client";
+import { request } from "remio-script-utils";
 import $ from "jquery";
 
 const BASE_URL = process.env.BASE_URL;
-
-const request = (options: any) => {
-  return new Promise((resolve, reject) => {
-    if (!options.method) {
-      options.method = "get";
-    }
-    if (!options.timeout) {
-      options.timeout = 10000;
-    }
-    options.onload = function (res: any) {
-      try {
-        resolve(JSON.parse(res.responseText));
-      } catch (error) {
-        reject(false);
-      }
-    };
-    options.onerror = function (e: any) {
-      reject(e);
-    };
-    options.ontimeout = function () {
-      reject(false);
-    };
-    GM.xmlHttpRequest(options);
-  });
-};
 
 const init = () => {
   const $button = $("<button>", {

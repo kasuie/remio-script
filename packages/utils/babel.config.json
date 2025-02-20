@@ -1,0 +1,15 @@
+{
+  "presets": ["@babel/env", "@babel/typescript"],
+  "env": {
+    "esm": {
+      "presets": [
+        [
+          "@babel/env",
+          {
+            "modules": false
+          }
+        ]
+      ]
+    }
+  }
+}
