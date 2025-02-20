@@ -59,13 +59,19 @@ importers:
       jquery:
         specifier: ^3.7.1
         version: 3.7.1
-      remio-script-utils:
-        specifier: workspace:^
-        version: link:../../packages/utils
     devDependencies:
       '@types/jquery':
         specifier: ^3.5.32
         version: 3.5.32
+      remio-script-utils:
+        specifier: workspace:^
+        version: link:../../packages/utils
+
+  scripts/pixiv:
+    devDependencies:
+      remio-script-utils:
+        specifier: workspace:^
+        version: link:../../packages/utils
 
 packages:
 
