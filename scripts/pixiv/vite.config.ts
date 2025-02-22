@@ -2,7 +2,7 @@
  * @Author: kasuie
  * @Date: 2025-02-20 17:58:41
  * @LastEditors: kasuie
- * @LastEditTime: 2025-02-20 17:58:46
+ * @LastEditTime: 2025-02-22 11:17:01
  * @Description:
  */
 import { defineConfig, loadEnv } from "vite";
@@ -21,9 +21,12 @@ export default defineConfig(({ mode }) => {
         server: { mountGmApi: true },
         userscript: {
           author: "kasuie",
-          icon: "https://www.google.com/s2/favicons?sz=64&domain=pixiv",
+          icon: "https://www.google.com/s2/favicons?sz=64&domain=pixiv.net",
           namespace: "remio/script-pixiv",
-          match: ["https://pixiv.net/*"],
+          match: [
+            "https://www.pixiv.net/artworks/*",
+            "https://www.pixiv.net/ranking.php*",
+          ],
           version: "0.0.1",
         },
       }),

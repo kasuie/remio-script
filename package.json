@@ -8,6 +8,8 @@
     "build:bgm": "cd scripts/bangumi && pnpm build",
     "dev:bbs": "cd scripts/bbs-ys-role && vite",
     "build:bbs": "cd scripts/bbs-ys-role && pnpm build",
+    "dev:pix": "cd scripts/pixiv && vite",
+    "build:pix": "cd scripts/pixiv && pnpm build",
     "build:utils": "cd packages/utils && pnpm build",
     "publish:utils": "cd packages/utils && pnpm publish --access public",
     "build": "tsc && vite build",
