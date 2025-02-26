@@ -2,11 +2,12 @@
  * @Author: kasuie
  * @Date: 2025-02-20 16:07:18
  * @LastEditors: kasuie
- * @LastEditTime: 2025-02-20 17:58:34
+ * @LastEditTime: 2025-02-26 15:22:05
  * @Description:
  */
 import { GM } from "vite-plugin-monkey/dist/client";
-import { request } from "remio-script-utils";
+import { request, storage } from "remio-script-utils";
+import { isValidUrl } from "@kasuie/utils";
 
 const BaseUrl = process.env.BASE_URL;
 
@@ -393,9 +394,13 @@ const getRankAndToMio = (_e: any) => {
       }
     })
     .then((params: any) => {
-      if (DEV) {
-        console.log("请求mio参数:", params);
-        return null;
+      if (DEV) return console.log("新增mio请求参数：", params, input.value);
+      if (!input.value && isValidUrl(input.value))
+        return topError("❗请求地址不正确，请检查~");
+      storage.set("RankApi", input.value);
+      const proMsg = document.querySelector(".mio-pro-msg");
+      if (proMsg) {
+        content.removeChild(proMsg);
       }
       content.innerHTML =
         content.innerHTML +
@@ -407,15 +412,15 @@ const getRankAndToMio = (_e: any) => {
           <p style="color: #69f769;" class="mio-result-message"></p>
         </div>
       `;
+      let msg = document.querySelector(".mio-result-message");
       request({
         method: "POST",
-        url: `${BaseUrl}/prank/newDate`,
+        url: input.value,
         headers: { "Content-Type": "application/json" },
         data: JSON.stringify(params),
       })
         .then((res: any) => {
           console.log("请求mio结果：", res);
-          let msg = document.querySelector(".mio-result-message");
           if (res.success) {
             (msg as HTMLElement).innerHTML = "🎉好耶！发送数据成功~";
             if (mioDates) {
@@ -427,9 +432,17 @@ const getRankAndToMio = (_e: any) => {
             }
           } else {
             (msg as HTMLElement).style.color = "red";
-            (msg as HTMLElement).innerHTML = "💔发送失败惹";
+            (msg as HTMLElement).innerHTML = `💔发送失败惹。${
+              res?.message || ""
+            }`;
           }
           GM.notification(res.message);
+        })
+        .catch((e) => {
+          (msg as HTMLElement).style.color = "red";
+          (msg as HTMLElement).innerHTML = `💔发送失败惹。${
+            e?.statusText || e
+          }`;
         })
         .finally(() => {
           onLoading(false);
@@ -441,14 +454,15 @@ const getRankAndToMio = (_e: any) => {
 };
 
 const getArtworkAndToMio = (_e: any) => {
-  console.log("artwork", artwork);
+  console.log("artwork", artwork, input.value);
   if (+artwork.pid == +(pid || 0) && artwork.illustType == 0) {
-    if (DEV) {
-      return console.log("新增mio请求参数：", artwork);
-    }
+    if (DEV) return console.log("新增mio请求参数：", artwork);
+    if (!input.value && isValidUrl(input.value))
+      return topError("❗请求地址不正确，请检查~");
+    storage.set("ArtApi", input.value);
     request({
       method: "POST",
-      url: `${BaseUrl}/img/save`,
+      url: input.value,
       headers: { "Content-Type": "application/json" },
       data: JSON.stringify(artwork),
     })
@@ -457,10 +471,10 @@ const getArtworkAndToMio = (_e: any) => {
         if (res.success) {
           onTips(`🎉好耶！${res.message}~`);
         } else {
-          onTips(`💔新增失败惹。${res.message}~`, true);
+          onTips(`💔新增失败惹。${res?.message || ""}~`, true);
         }
       })
-      .catch((e) => onTips(`💔新增失败惹。${e}~`, true))
+      .catch((e) => onTips(`💔新增失败惹。${e?.statusText}~`, true))
       .finally(() => {
         onLoading(false);
       });
@@ -520,6 +534,8 @@ const prevBtn = document.createElement("button");
 const nextBtn = document.createElement("button");
 /** 关闭弹框按钮 */
 const span = document.createElement("span");
+/** 关闭弹框按钮 */
+const input = document.createElement("input");
 
 const html = document.querySelector("html");
 
@@ -545,7 +561,9 @@ const onModalChange = async () => {
     div.classList.remove("mio-tools-open");
     content.innerHTML = "";
   } else {
-    mioDates = await GM.getValue("mio-dates", "");
+    const ArtApi = await storage.get("ArtApi", `${BaseUrl}/img/save`);
+    const RankApi = await storage.get("RankApi", `${BaseUrl}/prank/newDate`);
+    mioDates = await storage.get("mio-dates", "");
     (html as HTMLElement).style.overflow = "hidden";
     div.classList.add("mio-tools-open");
     pid = isArtwork();
@@ -555,6 +573,7 @@ const onModalChange = async () => {
         <p>正在获取：<span style="color: #69f769;" class="mio-date">${pid}</span>数据</p>
         `;
       getArtwork();
+      input.value = ArtApi as string;
     } else {
       if (!DATE) {
         DATE = getDate();
@@ -567,6 +586,7 @@ const onModalChange = async () => {
         <p>将要获取排行榜数据日期为：<span style="color: #69f769;" class="mio-date">${DATE}</span></p>
         `;
       onCheckDate();
+      input.value = RankApi as string;
     }
   }
 };
@@ -631,6 +651,7 @@ nextBtn.addEventListener("click", (_e) => {
 
 actions.className = "mio-tools-main-btns";
 
+actions.appendChild(input);
 if (!pid) {
   actions.appendChild(prevBtn);
   actions.appendChild(nextBtn);
@@ -779,6 +800,16 @@ GM.addStyle(`
               button:disabled {
                 opacity: 0.7;
                 cursor: not-allowed;
+              }
+
+              > input {
+                outline: none;
+                border: none;
+                color: #ffffff;
+                background-color: rgba(255, 255, 255, .3);
+                width: 250px;
+                border-radius: 8px;
+                padding: 6px 8px;
               }
           }
       }

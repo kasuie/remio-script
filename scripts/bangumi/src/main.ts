@@ -1,4 +1,4 @@
-import { request } from "remio-script-utils";
+import { request, storage } from "remio-script-utils";
 interface GlobalParams {
   params: any;
   url: string;
@@ -31,7 +31,15 @@ const onMessage = (text: string, type = "success", time = 3000) => {
 };
 
 const onLoading = (loading = true) => {
-  $button && $button.attr("disabled", loading ? "true" : "false");
+  const $submit = $("#apisubmit");
+  $button &&
+    $button.attr({
+      disabled: loading,
+    });
+  $submit &&
+    $submit.attr({
+      disabled: loading,
+    });
 };
 
 const onGetPathEnd = (type: string, _path = null) => {
@@ -126,6 +134,14 @@ const init = () => {
         border-radius: 8px;
         padding: 6px 8px;
       }
+      #api {
+        outline: none;
+        border: none;
+        background-color: rgba(255, 255, 255, .3);
+        width: 180px;
+        border-radius: 8px;
+        padding: 6px 8px;
+      }
       `;
 
   // 将样式添加到 head 中
@@ -142,8 +158,9 @@ const init = () => {
                     <div class="modal-body">
                     </div>
                     <div class="modal-footer">
-                        <input id="rank" type="number" />
-                        <button class="submit-btn">提交</button>
+                        <input id="api" type="text" placeholder="提交接口" />
+                        <input id="rank" type="number" placeholder="排名" />
+                        <button id="apisubmit" class="submit-btn">提交</button>
                     </div>
                 </div>
             `);
@@ -223,8 +240,10 @@ const onCloseModal = () => {
   $(".overlay, .modal").fadeOut();
 };
 
-const onGetData = () => {
-  // return console.log("SID:", SID, "CID:", CID);
+const onGetData = async () => {
+  const CharApi = await storage.get("CharApi", `${BaseUrl}/bgm/saveChar`);
+  const SubApi = await storage.get("SubApi", `${BaseUrl}/bgm/saveSub`);
+  console.log(CharApi, SubApi, "CharApi, SubApi");
   if (CID) {
     $("span.modal-title").text("新增角色");
     onLoading();
@@ -260,10 +279,11 @@ const onGetData = () => {
         };
         global = {
           params,
-          url: `${BaseUrl}/bgm/saveChar`,
+          url: CharApi as string,
         };
         onLoading(false);
         onAppend("div.modal-body", "<p>加载成功</p>");
+        $("#api").val(global?.url || "");
         // onSubmit(`${BaseUrl}/bgm/saveChar`, params);
       });
     });
@@ -337,10 +357,11 @@ const onGetData = () => {
         };
         global = {
           params,
-          url: `${BaseUrl}/bgm/saveSub`,
+          url: SubApi as string,
         };
         onLoading(false);
         onAppend("div.modal-body", "<p>加载成功</p>");
+        $("#api").val(global?.url || "");
         // onSubmit(`${BaseUrl}/bgm/saveSub`, params);
       }
     );
@@ -355,6 +376,14 @@ const onSubmit = (
   }
 ) => {
   onAppend("div.modal-body", "<p>开始上报数据...</p>");
+  const Api = $("#api").val();
+  if (Api !== url) {
+    if (CID) {
+      storage.set("CharApi", Api);
+    } else if (SID) {
+      storage.set("SubApi", Api);
+    }
+  }
   console.log("onSubmit:", params);
   request({
     ...options,

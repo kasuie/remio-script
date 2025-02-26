@@ -2,7 +2,7 @@
  * @Author: kasuie
  * @Date: 2025-02-17 16:13:48
  * @LastEditors: kasuie
- * @LastEditTime: 2025-02-21 09:16:57
+ * @LastEditTime: 2025-02-26 10:19:44
  * @Description:
  */
 import {
@@ -10,6 +10,7 @@ import {
   GmXmlhttpRequestOption,
   GmResponseType,
 } from "vite-plugin-monkey/dist/client";
+export * from "./storage";
 
 export const request = (data: GmXmlhttpRequestOption<GmResponseType, any>) => {
   return new Promise((resolve, reject) => {
