@@ -1,8 +1,10 @@
-import { request } from "remio-script-utils";
+import { request, storage } from "remio-script-utils";
 import $ from "jquery";
 import { GM } from "vite-plugin-monkey/dist/client";
 
-const BASE_URL = process.env.BASE_URL;
+let params: any = null;
+
+const BaseUrl = process.env.BASE_URL;
 
 const onAppend = (ele: string, data: string) => $(ele).append(data);
 
@@ -41,6 +43,9 @@ const init = () => {
           border-radius: 10px;
           z-index: 1000;
       }
+      .modal-title {
+          color: white;      
+      }
       .modal-header {
           display: flex;
           justify-content: space-between;
@@ -66,7 +71,7 @@ const init = () => {
           margin: 20px 0;
           min-height: 200px;
       }
-      .modal-body > p {
+      .modal-body > p, .modal-body span{
           font-size: 14px;
           color: white;
       }
@@ -91,26 +96,105 @@ const init = () => {
           font-size: 16px;
           cursor: pointer;
       }
-      #api {
+      input {
         outline: none;
         border: none;
         color: white;
         background-color: rgba(255, 255, 255, .3);
-        width: 250px;
+        flex: 1;
         border-radius: 8px;
         padding: 6px 8px;
+      }
+      .apis {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 16px 0;
+      }
+      .apis > p {
+        display: flex;
+        flex-direction: row;
+        gap: 4px;    
+        align-items: center;
       }
   `);
 
   $("body").append($button);
 };
 
+const onLoading = (loading = true) => {
+  const $submit = $("#apisubmit");
+  $submit &&
+    $submit.attr({
+      disabled: loading,
+    });
+};
+
 const onSubmit = () => {
-  $(".overlay, .modal").fadeIn();
+  const RApi = $("#RApi").val();
+  const WApi = $("#WApi").val();
+  storage.set("RoleApi", RApi);
+  storage.set("WeaponApi", WApi);
+  onLoading();
+  /** 更新角色 */
+  const roleRes = !!RApi
+    ? request({
+        method: "POST",
+        url: RApi as string,
+        headers: { "Content-Type": "application/json" },
+        data: JSON.stringify(params.rolesVo),
+      })
+    : null;
+
+  /** 更新武器 */
+  const weaponRes = !!WApi
+    ? request({
+        method: "POST",
+        url: WApi as string,
+        headers: { "Content-Type": "application/json" },
+        data: JSON.stringify(params.weaponsVo),
+      })
+    : null;
+  if ($(".msg-tip")) $(".modal-body .msg-tip")?.remove();
+  Promise.all([roleRes, weaponRes].filter((v) => !!v))
+    .then(([res1, res2]: any) => {
+      console.log("请求结果~", res1, res2);
+      if (res1 && res2 && res1.success && res2.success) {
+        onAppend(
+          "div.modal-body",
+          "<p class='msg-tip' style='color: #69f769;'>发送数据成功！</p>"
+        );
+      } else if (res1 && res1.success && WApi) {
+        onAppend(
+          "div.modal-body",
+          "<p class='msg-tip'>角色发送数据成功！武器发送数据失败</p>"
+        );
+      } else if (res2 && res2.success && RApi) {
+        onAppend(
+          "div.modal-body",
+          "<p class='msg-tip'>武器发送数据成功！角色发送数据失败</p>"
+        );
+      } else {
+        onAppend(
+          "div.modal-body",
+          "<p class='msg-tip' style='color: red;'>都发送数据失败惹</p>"
+        );
+      }
+    })
+    .catch((e) => {
+      onAppend(
+        "div.modal-body",
+        `<p class='msg-tip' style='color: red;'>发送数据失败惹：${
+          e?.statusText || e
+        }</p>`
+      );
+    })
+    .finally(() => onLoading(false));
 };
 
 const onGetData = () => {
   onAppend("div.modal-body", "<p>开始加载数据...</p>");
+  onLoading();
   request({
     method: "GET",
     url: `https://api-takumi-static.mihoyo.com/common/blackboard/ys_obc/v1/home/content/list?app_sn=ys_obc&channel_id=189`,
@@ -127,39 +211,39 @@ const onGetData = () => {
           const weapons = list[0].children.find((v: any) => v.id == 5);
           rolesVo = formatRoles(roles.list);
           weaponsVo = formatWeapons(weapons.list);
+          params = { rolesVo, weaponsVo };
           console.log(rolesVo, weaponsVo);
-          // /** 更新角色 */
-          // const roleRes = request({
-          //   method: "POST",
-          //   url: `${BASE_URL}/ys/updateRoles?queryId=true`,
-          //   headers: { "Content-Type": "application/json" },
-          //   data: JSON.stringify(rolesVo),
-          // });
-
-          // /** 更新武器 */
-          // const weaponRes = request({
-          //   method: "POST",
-          //   url: `${BASE_URL}/ys/updateWeapons?queryId=true`,
-          //   headers: { "Content-Type": "application/json" },
-          //   data: JSON.stringify(weaponsVo),
-          // });
-
-          // Promise.all([roleRes, weaponRes])
-          //   .then(([res1, res2]) => {
-          //     console.log("请求结果~", res1, res2);
-          //   })
-          //   .catch((e) => console.log("请求失败：", e));
         }
         onAppend(
           "div.modal-body",
           `<p>加载成功，角色${rolesVo.length}条数据，武器${weaponsVo.length}条数据</p>`
         );
+        onAppend(
+          "div.modal-body",
+          `<div class="apis">
+            <p><span>角色接口：</span><input id="RApi" type="text" placeholder="角色提交接口" /></p>
+            <p><span>武器接口：</span><input id="WApi" type="text" placeholder="武器提交接口" /></p>
+          </div>`
+        );
       } else {
-        onAppend("div.modal-body", "<p>加载失败</p>");
+        onAppend("div.modal-body", "<p>加载数据失败</p>");
         console.log("获取数据失败：", res);
       }
     })
-    .catch((e) => console.log(e));
+    .then(async () => {
+      const RoleApi = await storage.get(
+        "RoleApi",
+        `${BaseUrl}/ys/updateRoles?queryId=true`
+      );
+      const WeaponApi = await storage.get(
+        "WeaponApi",
+        `${BaseUrl}/ys/updateWeapons?queryId=true`
+      );
+      $("#RApi").val(RoleApi as string);
+      $("#WApi").val(WeaponApi as string);
+    })
+    .catch((e) => console.log(e))
+    .finally(() => onLoading(false));
 };
 
 const formatWeapons = (list: any) => {
@@ -313,6 +397,8 @@ const formatRoles = (list: any) => {
 const onClear = (ele: string) => $(ele).html("");
 
 const onCloseModal = () => {
+  params = null;
+  onLoading(false);
   onClear("div.modal-body");
   $(".overlay, .modal").fadeOut();
 };
@@ -333,12 +419,13 @@ $("body").append(`
       <div class="modal-body">
       </div>
       <div class="modal-footer">
-          <input id="api" type="text" placeholder="提交接口" />
           <button id="apisubmit" class="submit-btn">提交</button>
       </div>
   </div>
 `);
 
 $(".close-btn").on("click", onCloseModal);
+
+$(".submit-btn").on("click", onSubmit);
 
 init();
